@@ -1,28 +1,22 @@
 import os
 import json
 import urllib.parse
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-from aiogram.client.session.aiohttp import AiohttpSession
-from aiogram.client.telegram import TelegramAPIServer
 
 # ===== НАСТРОЙКИ =====
 API_TOKEN = os.environ.get("BOT_TOKEN", "8752199180:AAFE36XSBYeYeQF5Y-OJgTJDWsN3nDdV0XY")
 YOUR_USERNAME = "PyotrAleksandrovich"
 
-# Если хотите использовать Cloudflare Worker (необязательно), раскомментируйте:
-# WORKER_URL = "https://wandering-credit-9614.petakasatkin31.workers.dev"
-# custom_api = TelegramAPIServer.from_base(WORKER_URL)
-# session = AiohttpSession(api=custom_api)
-# bot = Bot(token=API_TOKEN, session=session)
-# Если нет – используйте прямое подключение (бот будет на сервере Bothost, который в РФ, так что проблем с доступом к API быть не должно)
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 
-# ===== ПРАЙС-ЛИСТ (как у вас) =====
+# ===== ПРАЙС-ЛИСТ =====
 SERVICES = {
     "Диагностика": 250,
     "Детейлинг (чистка+диагностика)": 500,
@@ -59,7 +53,6 @@ class RepairState(StatesGroup):
     service = State()
     part_type = State()
 
-# ===== ХЕНДЛЕРЫ (ваши, без изменений) =====
 @dp.message(Command("start"))
 async def start(message: types.Message, state: FSMContext):
     kb = InlineKeyboardMarkup(inline_keyboard=[
@@ -158,10 +151,7 @@ async def show_price(message: types.Message):
     price_text += "\n🛡 Гарантия на работу 1 месяц\n⏱ Среднее время ремонта: 3 дня\n📞 Пётр Саныч | Ремонт и продажа смартфонов"
     await message.answer(price_text, parse_mode="Markdown")
 
-# ===== ВЕБХУК (для Bothost) =====
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-
+# ===== FastAPI приложение =====
 app = FastAPI()
 
 @app.post("/webhook")
@@ -174,13 +164,3 @@ async def webhook(request: Request):
 @app.get("/")
 async def root():
     return {"status": "ok"}
-
-# Функция для установки вебхука (вызывается один раз при старте)
-async def set_webhook():
-    webhook_url = os.environ.get("WEBHOOK_URL")
-    if webhook_url:
-        await bot.set_webhook(webhook_url)
-        print(f"Webhook set to {webhook_url}")
-
-# При запуске uvicorn (Bothost сам вызывает app)
-# Вам не нужен asyncio.run(), платформа сама запускает веб-сервер
